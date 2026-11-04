@@ -77,14 +77,6 @@ object EarpieceRouter {
                 message = "Failed to restore speaker routing: $exception",
             )
         }
-        try {
-            audioManager.setCommunicationDevice(null)
-        } catch (exception: Exception) {
-            Logger.logError(
-                tag = TAG,
-                message = "Failed to reset communication device: $exception",
-            )
-        }
     }
 
     private fun setCommunicationDeviceToEarpiece(audioManager: AudioManager) {
