@@ -3,6 +3,7 @@ package dev.anilbeesetti.nextplayer.feature.player.service
 import android.app.PendingIntent
 import android.content.ContentResolver
 import android.content.Intent
+import android.media.AudioDeviceInfo
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Bundle
@@ -54,7 +55,7 @@ import dev.anilbeesetti.nextplayer.core.model.Resume
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.R
-import dev.anilbeesetti.nextplayer.feature.player.audio.EarpieceRouter
+import dev.anilbeesetti.nextplayer.feature.player.audio.EarpieceDevices
 import dev.anilbeesetti.nextplayer.feature.player.extensions.addAdditionalSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioDecoderMode
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioTrackIndex
@@ -128,7 +129,10 @@ class PlayerService : MediaSessionService() {
     private var pendingMediaItemsRequest:
         ListenableFuture<MediaSession.MediaItemsWithStartPosition>? = null
     private var pendingAudioSelection: Pair<String, Uri>? = null
-    private var earpieceRoutingActive = false
+
+    private val earpieceDevice: AudioDeviceInfo? by lazy {
+        EarpieceDevices.earpieceDevice(applicationContext)
+    }
 
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var currentVolumeGain: Int = 0
@@ -921,7 +925,6 @@ class PlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        applyEarpiecePlayback(playerPreferences.earpiecePlayback)
         serviceScope.launch {
             preferencesRepository.playerPreferences.collect { preferences ->
                 applyEarpiecePlayback(preferences.earpiecePlayback)
@@ -1006,6 +1009,7 @@ class PlayerService : MediaSessionService() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+        applyEarpiecePlayback(playerPreferences.earpiecePlayback)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -1045,7 +1049,6 @@ class PlayerService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        applyEarpiecePlayback(false)
         cancelPendingMediaItems()
         super.onDestroy()
         artworkLoadJob?.cancel()
@@ -1066,28 +1069,8 @@ class PlayerService : MediaSessionService() {
     }
 
     private fun applyEarpiecePlayback(enabled: Boolean) {
-        if (enabled == earpieceRoutingActive) return
-        earpieceRoutingActive = enabled
-        if (enabled) {
-            EarpieceRouter.enable(applicationContext)
-        } else {
-            EarpieceRouter.disable(applicationContext)
-        }
-        restartPlaybackAfterAudioRoutingChange()
-    }
-
-    private fun restartPlaybackAfterAudioRoutingChange() {
-        val player = mediaSession?.player ?: return
-        val playbackState = player.playbackState
-        if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
-            return
-        }
-        val position = player.currentPosition
-        val playWhenReady = player.playWhenReady
-        player.stop()
-        player.playWhenReady = playWhenReady
-        player.prepare()
-        player.seekTo(position)
+        val player = mediaSession?.player as? ExoPlayer ?: return
+        player.setPreferredAudioDevice(if (enabled) earpieceDevice else null)
     }
 
     private fun Long.validDurationOrNull(): Long? = takeIf { it != C.TIME_UNSET && it >= 0 }
