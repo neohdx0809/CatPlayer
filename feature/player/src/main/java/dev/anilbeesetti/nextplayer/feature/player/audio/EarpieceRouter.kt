@@ -2,7 +2,7 @@ package dev.anilbeesetti.nextplayer.feature.player.audio
 
 import android.content.Context
 import android.media.AudioManager
-import android.util.Log
+import dev.anilbeesetti.nextplayer.core.common.Logger
 
 /**
  * Routes media playback through the built-in earpiece (听筒).
@@ -28,13 +28,16 @@ object EarpieceRouter {
     fun enable(context: Context) {
         if (originalSpeakerphoneState != null) return
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            ?: return
+        if (audioManager == null) return
         originalSpeakerphoneState = audioManager.isSpeakerphoneOn
         runCatching {
             audioManager.setMode(AudioManager.MODE_IN_CALL)
             audioManager.setSpeakerphoneOn(false)
         }.onFailure {
-            Log.w(TAG, "Failed to route audio to earpiece", it)
+            Logger.logError(
+                tag = TAG,
+                message = "Failed to route audio to earpiece: $it",
+            )
         }
     }
 
@@ -46,12 +49,15 @@ object EarpieceRouter {
         val originalState = originalSpeakerphoneState ?: return
         originalSpeakerphoneState = null
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            ?: return
+        if (audioManager == null) return
         runCatching {
             audioManager.setMode(AudioManager.MODE_NORMAL)
             audioManager.setSpeakerphoneOn(originalState)
         }.onFailure {
-            Log.w(TAG, "Failed to restore speaker routing", it)
+            Logger.logError(
+                tag = TAG,
+                message = "Failed to restore speaker routing: $it",
+            )
         }
     }
 }
