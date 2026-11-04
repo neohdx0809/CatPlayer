@@ -33,17 +33,18 @@ object EarpieceRouter {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         if (audioManager == null) return false
         originalSpeakerphoneState = audioManager.isSpeakerphoneOn
-        val applied = runCatching {
+        val applied = try {
             audioManager.setMode(AudioManager.MODE_IN_CALL)
             audioManager.setSpeakerphoneOn(false)
             setCommunicationDeviceToEarpiece(audioManager)
             audioManager.mode == AudioManager.MODE_IN_CALL
-        }.onFailure {
+        } catch (exception: Exception) {
             Logger.logError(
                 tag = TAG,
-                message = "Failed to apply earpiece routing: $it",
+                message = "Failed to apply earpiece routing: $exception",
             )
-        }.getOrDefault(value = false)
+            false
+        }
         if (applied) {
             Logger.logInfo(
                 tag = TAG,
@@ -67,21 +68,21 @@ object EarpieceRouter {
         originalSpeakerphoneState = null
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         if (audioManager == null) return
-        runCatching {
+        try {
             audioManager.setMode(AudioManager.MODE_NORMAL)
             audioManager.setSpeakerphoneOn(originalState)
-        }.onFailure {
+        } catch (exception: Exception) {
             Logger.logError(
                 tag = TAG,
-                message = "Failed to restore speaker routing: $it",
+                message = "Failed to restore speaker routing: $exception",
             )
         }
-        runCatching {
-            audioManager.setCommunicationDevice(device = null)
-        }.onFailure {
+        try {
+            audioManager.setCommunicationDevice(null)
+        } catch (exception: Exception) {
             Logger.logError(
                 tag = TAG,
-                message = "Failed to reset communication device: $it",
+                message = "Failed to reset communication device: $exception",
             )
         }
     }
@@ -91,7 +92,7 @@ object EarpieceRouter {
         val earpiece = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
             .firstOrNull { device -> device.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }
         if (earpiece != null) {
-            audioManager.setCommunicationDevice(device = earpiece)
+            audioManager.setCommunicationDevice(earpiece)
         }
     }
 }
