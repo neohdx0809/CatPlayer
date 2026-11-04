@@ -54,6 +54,7 @@ import dev.anilbeesetti.nextplayer.core.model.Resume
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.R
+import dev.anilbeesetti.nextplayer.feature.player.audio.EarpieceRouter
 import dev.anilbeesetti.nextplayer.feature.player.extensions.addAdditionalSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioDecoderMode
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioTrackIndex
@@ -127,6 +128,7 @@ class PlayerService : MediaSessionService() {
     private var pendingMediaItemsRequest:
         ListenableFuture<MediaSession.MediaItemsWithStartPosition>? = null
     private var pendingAudioSelection: Pair<String, Uri>? = null
+    private var earpieceRoutingActive = false
 
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var currentVolumeGain: Int = 0
@@ -919,6 +921,12 @@ class PlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        applyEarpiecePlayback(playerPreferences.earpiecePlayback)
+        serviceScope.launch {
+            preferencesRepository.playerPreferences.collect { preferences ->
+                applyEarpiecePlayback(preferences.earpiecePlayback)
+            }
+        }
         decoderManager = DecoderManager()
         val renderersFactory = NextRenderersFactory(
             context = applicationContext,
@@ -1037,6 +1045,7 @@ class PlayerService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        applyEarpiecePlayback(false)
         cancelPendingMediaItems()
         super.onDestroy()
         artworkLoadJob?.cancel()
@@ -1054,6 +1063,16 @@ class PlayerService : MediaSessionService() {
         // Queue release before a new service can open another connection.
         applicationScope.launch(start = CoroutineStart.UNDISPATCHED) { dataSourceFactory.release() }
         serviceScope.cancel()
+    }
+
+    private fun applyEarpiecePlayback(enabled: Boolean) {
+        if (enabled == earpieceRoutingActive) return
+        earpieceRoutingActive = enabled
+        if (enabled) {
+            EarpieceRouter.enable(applicationContext)
+        } else {
+            EarpieceRouter.disable(applicationContext)
+        }
     }
 
     private fun Long.validDurationOrNull(): Long? = takeIf { it != C.TIME_UNSET && it >= 0 }

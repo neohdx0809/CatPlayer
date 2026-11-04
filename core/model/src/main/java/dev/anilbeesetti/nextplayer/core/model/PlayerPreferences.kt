@@ -50,6 +50,7 @@ data class PlayerPreferences(
     val requireAudioFocus: Boolean = true,
     val showSystemVolumePanel: Boolean = true,
     val enableVolumeBoost: Boolean = false,
+    val earpiecePlayback: Boolean = true,
 
     // Subtitle Preferences
     val useSystemCaptionStyle: Boolean = false,

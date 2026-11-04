@@ -118,6 +118,13 @@ private fun AudioPreferencesScreenContent(
                     isFirstItem = true,
                 )
                 PreferenceSwitch(
+                    title = stringResource(R.string.earpiece_playback),
+                    description = stringResource(R.string.earpiece_playback_desc),
+                    icon = NextIcons.Audio,
+                    isChecked = state.preferences.earpiecePlayback,
+                    onClick = { onAction(AudioPreferencesUiEvent.ToggleEarpiecePlayback) },
+                )
+                PreferenceSwitch(
                     title = stringResource(R.string.require_audio_focus),
                     description = stringResource(R.string.require_audio_focus_desc),
                     icon = NextIcons.Focus,

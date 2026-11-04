@@ -54,6 +54,8 @@ class AudioPreferencesViewModel(
             is AudioPreferencesUiEvent.ToggleRequireAudioFocus -> toggleRequireAudioFocus()
 
             is AudioPreferencesUiEvent.ToggleVolumeBoost -> toggleVolumeBoost()
+
+            is AudioPreferencesUiEvent.ToggleEarpiecePlayback -> toggleEarpiecePlayback()
         }
     }
 
@@ -100,6 +102,14 @@ class AudioPreferencesViewModel(
             }
         }
     }
+
+    private fun toggleEarpiecePlayback() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(earpiecePlayback = !it.earpiecePlayback)
+            }
+        }
+    }
 }
 
 @Stable
@@ -121,4 +131,5 @@ sealed interface AudioPreferencesUiEvent {
     data object ToggleShowSystemVolumePanel : AudioPreferencesUiEvent
     data object ToggleRequireAudioFocus : AudioPreferencesUiEvent
     data object ToggleVolumeBoost : AudioPreferencesUiEvent
+    data object ToggleEarpiecePlayback : AudioPreferencesUiEvent
 }
