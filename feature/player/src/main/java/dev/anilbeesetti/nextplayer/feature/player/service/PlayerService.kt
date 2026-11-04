@@ -1073,6 +1073,21 @@ class PlayerService : MediaSessionService() {
         } else {
             EarpieceRouter.disable(applicationContext)
         }
+        restartPlaybackAfterAudioRoutingChange()
+    }
+
+    private fun restartPlaybackAfterAudioRoutingChange() {
+        val player = mediaSession?.player ?: return
+        val playbackState = player.playbackState
+        if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
+            return
+        }
+        val position = player.currentPosition
+        val playWhenReady = player.playWhenReady
+        player.stop()
+        player.playWhenReady = playWhenReady
+        player.prepare()
+        player.seekTo(position)
     }
 
     private fun Long.validDurationOrNull(): Long? = takeIf { it != C.TIME_UNSET && it >= 0 }

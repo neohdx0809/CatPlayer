@@ -1,7 +1,9 @@
 package dev.anilbeesetti.nextplayer.feature.player.audio
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.os.Build
 import dev.anilbeesetti.nextplayer.core.common.Logger
 
 /**
@@ -9,6 +11,7 @@ import dev.anilbeesetti.nextplayer.core.common.Logger
  *
  * The audio mode is switched to [AudioManager.MODE_IN_CALL], which makes the system
  * route all audio, including media, to the earpiece and keeps the speaker disabled.
+ * The communication device is also pointed at the earpiece where supported.
  * Works without root, Shizuku or any special permissions.
  */
 object EarpieceRouter {
@@ -23,22 +26,36 @@ object EarpieceRouter {
 
     /**
      * Starts routing audio to the earpiece and disables the speaker.
-     * Does nothing when already active or when no AudioManager is available.
+     * Returns whether the routing was applied successfully.
      */
-    fun enable(context: Context) {
-        if (originalSpeakerphoneState != null) return
+    fun enable(context: Context): Boolean {
+        if (originalSpeakerphoneState != null) return true
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-        if (audioManager == null) return
+        if (audioManager == null) return false
         originalSpeakerphoneState = audioManager.isSpeakerphoneOn
-        runCatching {
+        val applied = runCatching {
             audioManager.setMode(AudioManager.MODE_IN_CALL)
             audioManager.setSpeakerphoneOn(false)
+            setCommunicationDeviceToEarpiece(audioManager)
+            audioManager.mode == AudioManager.MODE_IN_CALL
         }.onFailure {
             Logger.logError(
                 tag = TAG,
-                message = "Failed to route audio to earpiece: $it",
+                message = "Failed to apply earpiece routing: $it",
+            )
+        }.getOrDefault(value = false)
+        if (applied) {
+            Logger.logInfo(
+                tag = TAG,
+                message = "Audio routed to earpiece",
+            )
+        } else {
+            Logger.logError(
+                tag = TAG,
+                message = "Earpiece routing not applied, audio mode is ${audioManager.mode}",
             )
         }
+        return applied
     }
 
     /**
@@ -58,6 +75,23 @@ object EarpieceRouter {
                 tag = TAG,
                 message = "Failed to restore speaker routing: $it",
             )
+        }
+        runCatching {
+            audioManager.setCommunicationDevice(device = null)
+        }.onFailure {
+            Logger.logError(
+                tag = TAG,
+                message = "Failed to reset communication device: $it",
+            )
+        }
+    }
+
+    private fun setCommunicationDeviceToEarpiece(audioManager: AudioManager) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val earpiece = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            .firstOrNull { device -> device.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }
+        if (earpiece != null) {
+            audioManager.setCommunicationDevice(device = earpiece)
         }
     }
 }
